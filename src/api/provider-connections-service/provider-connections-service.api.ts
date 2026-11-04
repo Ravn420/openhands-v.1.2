@@ -41,6 +41,13 @@ export interface ProviderConnection {
   updated_at: number;
   /** Whether the stored connection currently holds a usable key. */
   api_key_set: boolean;
+  /**
+   * Models/deployments the backend verified for this credential, when the
+   * provider supports account-scoped discovery (for example Azure OpenAI).
+   * Omitted means the backend does not provide discovery metadata, so callers
+   * must retain the provider-wide catalog fallback.
+   */
+  available_models?: string[];
 }
 
 export interface CreateProviderConnectionRequest {

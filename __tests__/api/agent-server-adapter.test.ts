@@ -12,6 +12,7 @@ import {
   buildWorkspaceTags,
   buildRuntimeServicesSystemSuffix,
   buildStartConversationRequest,
+  buildStartPlanningConversationRequest,
   buildStartConversationRequestWithEncryptedSettings,
   fetchBackendExecutionRuntime,
   getDefaultConversationTitle,
@@ -33,6 +34,11 @@ import type { HookConfig } from "@openhands/typescript-client";
 import { DEFAULT_SETTINGS } from "#/services/settings";
 import type { SettingsValue } from "#/types/settings";
 import { useModelStore } from "#/stores/model-store";
+import {
+  LLM_AUTH_TYPE_AZURE_OAUTH,
+  LLM_AUTH_TYPE_SUBSCRIPTION,
+  OPENAI_SUBSCRIPTION_VENDOR,
+} from "#/constants/llm-subscription";
 
 const {
   mockGetAgentServerWorkingDir,
@@ -252,6 +258,55 @@ describe("buildStartConversationRequest", () => {
       },
       container: { memory: "4g", cpus: 2, browser: false },
     });
+  });
+
+  it("preserves Azure OAuth auth and bearer token", () => {
+    const payload = buildStartPlanningConversationRequest({
+      encryptedAgentSettings: {
+        ...DEFAULT_SETTINGS.agent_settings,
+        llm: {
+          model: "azure/gpt-4o",
+          api_key: "azure-entra-bearer-token",
+          auth_type: LLM_AUTH_TYPE_AZURE_OAUTH,
+          base_url: "https://example.openai.azure.com/",
+        },
+      },
+      workingDir: "/workspace/project/agent-canvas",
+      parentConversationId: "parent-1",
+    });
+
+    expect(payload.agent.llm).toMatchObject({
+      model: "azure/gpt-4o",
+      api_key: "azure-entra-bearer-token",
+      auth_type: LLM_AUTH_TYPE_AZURE_OAUTH,
+    });
+    expect(payload.agent.llm.subscription_vendor).toBeUndefined();
+  });
+
+  it("sends the canonical planning tools", () => {
+    const payload = buildStartPlanningConversationRequest({
+      encryptedAgentSettings: {
+        ...DEFAULT_SETTINGS.agent_settings,
+        tools: [
+          { name: "glob", params: {} },
+          { name: "task_tool_set", params: { x: 1 } },
+        ],
+        llm: { model: "nested-model" },
+      },
+      workingDir: "/workspace/project/agent-canvas",
+      parentConversationId: "parent-1",
+    });
+
+    expect(payload.agent.tools).toEqual([
+      { name: "glob", params: {} },
+      { name: "grep", params: {} },
+      {
+        name: "planning_file_editor",
+        params: {
+          plan_path: "/workspace/project/agent-canvas/.agents_tmp/PLAN.md",
+        },
+      },
+    ]);
   });
 
   it("omits the title LLM profile in automatic mode without a default", () => {

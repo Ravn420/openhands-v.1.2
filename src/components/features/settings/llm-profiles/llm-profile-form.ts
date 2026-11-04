@@ -1,6 +1,7 @@
 import { LLM_PROVIDER_CONNECTION_KEY } from "#/constants/llm-provider-connection";
 import {
   LLM_AUTH_TYPE_API_KEY,
+  LLM_AUTH_TYPE_AZURE_OAUTH,
   LLM_AUTH_TYPE_KEY,
   LLM_AUTH_TYPE_SUBSCRIPTION,
   LLM_SUBSCRIPTION_VENDOR_KEY,
@@ -137,6 +138,21 @@ export function buildProfileLlmConfig({
     llmConfig.provider_connection_id = null;
     delete llmConfig.api_key;
     delete llmConfig.base_url;
+  } else if (authType === LLM_AUTH_TYPE_AZURE_OAUTH) {
+    // Azure OpenAI uses an OAuth bearer token in the same encrypted api_key
+    // slot. Keep the auth discriminator so the agent server can select its
+    // Azure token path instead of treating the token as a static API key.
+    llmConfig.auth_type = LLM_AUTH_TYPE_AZURE_OAUTH;
+    llmConfig.subscription_vendor = null;
+    if (supportsConnections) llmConfig.provider_connection_id = null;
+    if (
+      typeof llmConfig.api_key !== "string" ||
+      llmConfig.api_key.trim() === ""
+    ) {
+      const existingKey = typeof base.api_key === "string" ? base.api_key : "";
+      if (existingKey) llmConfig.api_key = existingKey;
+      else delete llmConfig.api_key;
+    }
   } else if (connectionId) {
     llmConfig.auth_type = LLM_AUTH_TYPE_API_KEY;
     llmConfig.subscription_vendor = null;

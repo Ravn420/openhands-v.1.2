@@ -16,6 +16,7 @@ import {
   formControlSwitchDescriptionClassName,
 } from "#/utils/form-control-classes";
 import { FieldHelp } from "./field-help";
+import { AWS_REGION_CHOICES } from "#/utils/aws-regions";
 
 /**
  * Field keys that should span the full settings grid (both columns on xl
@@ -28,7 +29,15 @@ export const FIELD_FULL_WIDTH_KEYS: ReadonlySet<string> = new Set([
 ]);
 
 function isSelectField(field: SettingsFieldSchema): boolean {
-  return field.choices.length > 0;
+  return field.choices.length > 0 || field.key === "llm.aws_region_name";
+}
+
+function getChoices(field: SettingsFieldSchema) {
+  if (field.choices.length > 0) return field.choices;
+  if (field.key === "llm.aws_region_name") {
+    return AWS_REGION_CHOICES.map(({ value, label }) => ({ value, label }));
+  }
+  return [];
 }
 
 function isBooleanField(field: SettingsFieldSchema): boolean {
@@ -98,7 +107,7 @@ export function SchemaField({
           testId={`sdk-settings-${field.key}`}
           name={field.key}
           label={label}
-          items={field.choices.map((choice) => ({
+          items={getChoices(field).map((choice) => ({
             key: String(choice.value),
             label: resolveSchemaChoiceLabel(
               t,

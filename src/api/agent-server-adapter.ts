@@ -61,6 +61,7 @@ import SettingsService from "./settings-service/settings-service.api";
 import { getStoredConversationMetadata } from "./conversation-metadata-store";
 import LLMSubscriptionService from "./llm-subscription-service";
 import {
+  LLM_AUTH_TYPE_AZURE_OAUTH,
   LLM_AUTH_TYPE_SUBSCRIPTION,
   OPENAI_SUBSCRIPTION_VENDOR,
   isSubscriptionLlmConfig,
@@ -757,6 +758,12 @@ function buildNormalizedLlmSettings(value: unknown): SettingsRecord {
     llm.auth_type = LLM_AUTH_TYPE_SUBSCRIPTION;
     llm.subscription_vendor = OPENAI_SUBSCRIPTION_VENDOR;
     delete llm.api_key;
+  } else if (llm.auth_type === LLM_AUTH_TYPE_AZURE_OAUTH) {
+    // The Azure bearer token is stored in the encrypted api_key field. Do not
+    // erase the auth discriminator: the agent server uses it to select Entra
+    // token authentication rather than static Azure API-key auth.
+    llm.auth_type = LLM_AUTH_TYPE_AZURE_OAUTH;
+    delete llm.subscription_vendor;
   } else {
     delete llm.auth_type;
     delete llm.subscription_vendor;

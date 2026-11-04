@@ -60,6 +60,28 @@ interface ModelRow {
 /** Sentinel for the "no connection" (keyless) option in the connection box. */
 const KEYLESS_CONNECTION_VALUE = "";
 
+function filterModelsByConnectionAvailability(
+  models: NonNullable<ReturnType<typeof useProviderModels>["data"]>,
+  availableModels: string[] | undefined,
+  provider: string | null,
+) {
+  if (!availableModels) return models;
+
+  const available = new Set(availableModels);
+  return models.filter((model) => {
+    const fullName =
+      model.provider && !model.name.startsWith(`${model.provider}/`)
+        ? `${model.provider}/${model.name}`
+        : model.name;
+    const providerName = provider ?? model.provider;
+    const bareName =
+      providerName && fullName.startsWith(`${providerName}/`)
+        ? fullName.slice(providerName.length + 1)
+        : model.name;
+    return available.has(fullName) || available.has(bareName);
+  });
+}
+
 /**
  * Bulk-add models as LLM profiles. One modal serves two entry points: the top
  * "Add from provider connections" button (chooser mode — pick a provider) and
@@ -112,6 +134,21 @@ export function AddModelsModal({
       : null;
   }, [matchingConnections, selectedConnectionId]);
 
+  const selectedConnection = useMemo(
+    () =>
+      matchingConnections.find((connection) => connection.id === connectionId),
+    [connectionId, matchingConnections],
+  );
+  const availableModels = useMemo(
+    () =>
+      filterModelsByConnectionAvailability(
+        models.data ?? [],
+        selectedConnection?.available_models,
+        selectedProvider,
+      ),
+    [models.data, selectedConnection?.available_models, selectedProvider],
+  );
+
   // Rows follow the model list, and only the model list. Already-added models
   // are hidden at render rather than rebuilding the rows, because a rebuild
   // discards the selections and per-row statuses the user has accumulated. A
@@ -124,7 +161,7 @@ export function AddModelsModal({
   // re-select rows the user has already curated.
   const autoSelectRef = useRef(false);
   useEffect(() => {
-    const items = models.data ?? [];
+    const items = availableModels;
     const selectNew = autoSelectRef.current;
     setRows((prev) => {
       const prior = new Map(prev.map((row) => [row.model, row]));
@@ -161,7 +198,7 @@ export function AddModelsModal({
       return built;
     });
     if (items.length > 0) autoSelectRef.current = false;
-  }, [models.data]);
+  }, [availableModels]);
 
   // The manager keeps this component mounted and drives it with `isOpen`, so
   // without an explicit reset a reopened modal still shows the last session's

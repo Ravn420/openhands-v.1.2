@@ -1154,9 +1154,12 @@ const SERVICES = {
 // The launcher starts each service in its own process group, so services are
 // found by walking the process tree under the launcher, not by its group.
 function descendants(rootPid) {
-  const listing = spawnSync("ps", ["-eo", "pid=,ppid=,pgid=,args="], {
+  const result = spawnSync("ps", ["-eo", "pid=,ppid=,pgid=,args="], {
     encoding: "utf8",
-  }).stdout;
+  });
+  if (result.error || result.status !== 0 || typeof result.stdout !== "string")
+    return [];
+  const listing = result.stdout;
   const rows = listing
     .split("\n")
     .map((line) => line.trim().match(/^(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/))

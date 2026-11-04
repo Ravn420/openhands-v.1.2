@@ -220,6 +220,29 @@ describe("AddModelsModal", () => {
     await screen.findByTestId("add-models-row-openai/gpt-4o");
   });
 
+  it("shows only Azure deployments available to the configured connection", async () => {
+    vi.mocked(ConfigService.searchModels).mockResolvedValue({
+      items: [
+        model("azure", "gpt-4o", false),
+        model("azure", "gpt-4o-mini", false),
+      ],
+      next_page_id: null,
+    });
+    const azureConnection = makeConnection({
+      id: "conn-azure",
+      display_name: "Azure OpenAI",
+      provider: "azure",
+      available_models: ["gpt-4o"],
+    });
+
+    renderModal(azureConnection);
+
+    await screen.findByTestId("add-models-row-azure/gpt-4o");
+    expect(
+      screen.queryByTestId("add-models-row-azure/gpt-4o-mini"),
+    ).not.toBeInTheDocument();
+  });
+
   it("lists all models for the connection's provider with short (unprefixed) names", async () => {
     renderModal();
     await screen.findByTestId("add-models-row-openai/gpt-4o");

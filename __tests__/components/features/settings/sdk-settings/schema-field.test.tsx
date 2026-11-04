@@ -14,6 +14,9 @@ vi.mock("react-i18next", () => ({
         SCHEMA$VERIFICATION$CRITIC_API_KEY$HELP_SUFFIX:
           "section of OpenHands Cloud; otherwise, enter a Critic API Key from that page.",
         SETTINGS$OPENHANDS_API_KEY_HELP_LINK: "OpenHands LLM Key",
+        SCHEMA$LLM$AWS_REGION_NAME$LABEL: "AWS Region",
+        SCHEMA$LLM$AWS_REGION_NAME$DESCRIPTION:
+          "Choose the AWS region used by Bedrock.",
       })[key] ?? key,
   }),
 }));
@@ -100,5 +103,28 @@ describe("SchemaField", () => {
     expect(
       screen.queryByText("Server schema description should be replaced."),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders AWS region as a curated dropdown when the server has no choices", () => {
+    render(
+      <SchemaField
+        field={buildField({
+          key: "llm.aws_region_name",
+          label: "AWS Region",
+          description: "Choose the AWS region used by Bedrock.",
+          value_type: "string",
+        })}
+        value="us-east-1"
+        isDisabled={false}
+        onChange={() => {}}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("sdk-settings-llm.aws_region_name"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "AWS Region" }),
+    ).toBeInTheDocument();
   });
 });

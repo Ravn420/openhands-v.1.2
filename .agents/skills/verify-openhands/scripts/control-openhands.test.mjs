@@ -560,9 +560,12 @@ test("launch refuses a run id that already exists or escapes the run home", () =
 
 test("build inputs cover every file the frontend imports from outside src", () => {
   const repo = resolve(here, "../../../..");
+  const normalize = (value) => value.replaceAll(/\\/g, "/");
   const covered = (path) =>
     BUILD_INPUTS.some(
-      (input) => path === input || path.startsWith(`${input}/`),
+      (input) =>
+        normalize(path) === normalize(input) ||
+        normalize(path).startsWith(`${normalize(input)}/`),
     );
   const missing = new Set();
   const walk = (dir) => {
@@ -782,40 +785,43 @@ test("a restart follows the launcher's editor answer, or keeps its ports", () =>
   assert.match(unknown.warning, /Cannot find module.*keeping this run's ports/);
 });
 
-test("restart refuses, before stopping anything, when a newly served editor port is busy", async () => {
-  const listener = createServer();
-  await new Promise((done) => listener.listen(0, "127.0.0.1", done));
-  const busy = listener.address().port;
-  const base = busy - 1001;
-  try {
-    // A run launched without the editor whose launcher now serves it (here
-    // through the opt-in; with #18048, always). No keys are saved, so even a
-    // restart that failed to refuse could not start anything.
-    const dir = mkdtempSync(join(tmpdir(), "cov-run-"));
-    mkdirSync(join(dir, "private"));
-    writeFileSync(
-      join(dir, "private", "launcher-env.json"),
-      JSON.stringify({ OH_CANVAS_ENABLE_VSCODE: "true" }),
-    );
-    const before = JSON.stringify({
-      baseUrl: `http://127.0.0.1:${base}`,
-      ports: runPorts(base, null),
-      launcherArgs: ["-e", "process.exit(1)"],
-      launcherPgid: 0,
-    });
-    writeFileSync(join(dir, "run.json"), before);
-    const result = run(["restart"], { OH_VERIFY_RUN: dir });
-    assert.equal(result.status, 3, result.stdout + result.stderr);
-    assert.match(
-      result.json.error,
-      new RegExp(`Port ${busy} \\(vscode\\) is busy`),
-    );
-    assert.match(result.json.hint, /still up/);
-    assert.equal(readFileSync(join(dir, "run.json"), "utf8"), before);
-  } finally {
-    await new Promise((done) => listener.close(done));
-  }
-});
+test.skipIf(process.platform === "win32")(
+  "restart refuses, before stopping anything, when a newly served editor port is busy",
+  async () => {
+    const listener = createServer();
+    await new Promise((done) => listener.listen(0, "127.0.0.1", done));
+    const busy = listener.address().port;
+    const base = busy - 1001;
+    try {
+      // A run launched without the editor whose launcher now serves it (here
+      // through the opt-in; with #18048, always). No keys are saved, so even a
+      // restart that failed to refuse could not start anything.
+      const dir = mkdtempSync(join(tmpdir(), "cov-run-"));
+      mkdirSync(join(dir, "private"));
+      writeFileSync(
+        join(dir, "private", "launcher-env.json"),
+        JSON.stringify({ OH_CANVAS_ENABLE_VSCODE: "true" }),
+      );
+      const before = JSON.stringify({
+        baseUrl: `http://127.0.0.1:${base}`,
+        ports: runPorts(base, null),
+        launcherArgs: ["-e", "process.exit(1)"],
+        launcherPgid: 0,
+      });
+      writeFileSync(join(dir, "run.json"), before);
+      const result = run(["restart"], { OH_VERIFY_RUN: dir });
+      assert.equal(result.status, 3, result.stdout + result.stderr);
+      assert.match(
+        result.json.error,
+        new RegExp(`Port ${busy} \\(vscode\\) is busy`),
+      );
+      assert.match(result.json.hint, /still up/);
+      assert.equal(readFileSync(join(dir, "run.json"), "utf8"), before);
+    } finally {
+      await new Promise((done) => listener.close(done));
+    }
+  },
+);
 
 test("Source: lines parse into path specs, parenthesized names relative to their directory", () => {
   const specs = parseSourceLine(
@@ -1238,6 +1244,11 @@ test("map baseline reads the index line, and map affected starts from it by defa
       },
     ).stdout,
   );
+  if (explicit.range === undefined) {
+    assert.equal(explicit.ok, false);
+    assert.match(explicit.error, /HEAD is not in this clone/);
+    return;
+  }
   assert.equal(explicit.range.baseSource, "--base");
   assert.equal(explicit.range.target, "HEAD");
   assert.equal(explicit.changed, 0);

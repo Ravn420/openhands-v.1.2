@@ -4,6 +4,8 @@ export const LLM_AUTH_TYPE_KEY = "llm.auth_type";
 export const LLM_SUBSCRIPTION_VENDOR_KEY = "llm.subscription_vendor";
 export const LLM_AUTH_TYPE_API_KEY = "api_key";
 export const LLM_AUTH_TYPE_SUBSCRIPTION = "subscription";
+/** Azure OpenAI bearer tokens issued by Microsoft Entra ID (OAuth 2.0). */
+export const LLM_AUTH_TYPE_AZURE_OAUTH = "azure_oauth";
 export const OPENAI_SUBSCRIPTION_VENDOR = "openai";
 
 export const OPENAI_SUBSCRIPTION_MODELS_PATH =
@@ -19,10 +21,15 @@ export const OPENAI_SUBSCRIPTION_LOGOUT_PATH =
 
 export type LlmAuthType =
   | typeof LLM_AUTH_TYPE_API_KEY
-  | typeof LLM_AUTH_TYPE_SUBSCRIPTION;
+  | typeof LLM_AUTH_TYPE_SUBSCRIPTION
+  | typeof LLM_AUTH_TYPE_AZURE_OAUTH;
 
 export const LLM_AUTH_TYPE_CHOICES: SettingsChoice[] = [
   { label: "API key", value: LLM_AUTH_TYPE_API_KEY },
+  {
+    label: "Azure OpenAI (Microsoft Entra ID / OAuth)",
+    value: LLM_AUTH_TYPE_AZURE_OAUTH,
+  },
   { label: "ChatGPT subscription", value: LLM_AUTH_TYPE_SUBSCRIPTION },
 ];
 
@@ -30,7 +37,7 @@ const LLM_AUTH_TYPE_FIELD: SettingsFieldSchema = {
   key: LLM_AUTH_TYPE_KEY,
   label: "Authentication",
   description:
-    "Choose whether this profile uses API credentials or a ChatGPT subscription.",
+    "Choose API credentials, an Azure OpenAI Microsoft Entra bearer token, or a ChatGPT subscription.",
   section: "llm",
   section_label: "LLM",
   value_type: "string",
@@ -63,9 +70,9 @@ export const LLM_SUBSCRIPTION_SCHEMA_FIELDS = [
 ];
 
 export function resolveLlmAuthType(value: unknown): LlmAuthType {
-  return value === LLM_AUTH_TYPE_SUBSCRIPTION
-    ? LLM_AUTH_TYPE_SUBSCRIPTION
-    : LLM_AUTH_TYPE_API_KEY;
+  if (value === LLM_AUTH_TYPE_SUBSCRIPTION) return LLM_AUTH_TYPE_SUBSCRIPTION;
+  if (value === LLM_AUTH_TYPE_AZURE_OAUTH) return LLM_AUTH_TYPE_AZURE_OAUTH;
+  return LLM_AUTH_TYPE_API_KEY;
 }
 
 export function isSubscriptionLlmConfig(
